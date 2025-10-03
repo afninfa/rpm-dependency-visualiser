@@ -83,6 +83,15 @@ def build_dict(directory: str) -> dict[str, RPM]:
     return ret
 
 
+def clean_dict(dag: dict[str, RPM]) -> None:
+    for name, rpm in dag.items():
+        cleaned_dependencies = []
+        for dependency in rpm.dependencies:
+            if dependency[0] in dag:
+                cleaned_dependencies.append(dependency)
+        rpm.dependencies = cleaned_dependencies
+
+
 def walk(dag: dict[str, RPM], root_rpm: str) -> None:
     return walk_impl(dag, root_rpm, BoxedInteger(0), "", {})
 
@@ -92,18 +101,26 @@ def walk_impl(
         current_rpm: str,
         line_num: BoxedInteger,
         padding: str,
-        visited: dict[str, int]
+        visited: dict[str, int],
+        is_last: bool = True
     ) -> None:
     if current_rpm not in dag:
         return
     line_num.increment()
+    
+    prefix = padding + ('└── ' if is_last else '├── ')
+    
     if current_rpm in visited:
-        print(f"{str(line_num)}{padding}{current_rpm} (already expanded on line {visited[current_rpm]})")
+        print(f"{str(line_num)}{prefix}{current_rpm} (already expanded on line {visited[current_rpm]})")
     else:
         visited[current_rpm] = line_num.read()
-        print(f"{str(line_num)}{padding}{current_rpm}")
-        for dependency in dag[current_rpm].dependencies:
-            walk_impl(dag, dependency[0], line_num, padding + "|  ", visited)
+        print(f"{str(line_num)}{prefix}{current_rpm}")
+        
+        dependencies = dag[current_rpm].dependencies
+        for i, dependency in enumerate(dependencies):
+            is_last_dep = (i == len(dependencies) - 1)
+            new_padding = padding + ('    ' if is_last else '│   ')
+            walk_impl(dag, dependency[0], line_num, new_padding, visited, is_last_dep)
 
 
 def main() -> None:
@@ -132,6 +149,7 @@ def main() -> None:
     root_rpm_name = query_rpm(root_rpm_path, "%{NAME}")
 
     dependency_dag = build_dict(dir_path)
+    clean_dict(dependency_dag)
     walk(dependency_dag, root_rpm_name)
 
 

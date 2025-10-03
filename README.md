@@ -28,15 +28,15 @@ There are probably a bunch of dependency relationships here. For example in my c
 
 ```
 $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
-1   └── dummy-f
-2       ├── dummy-e
-3       │   ├── dummy-c
-4       │   │   ├── dummy-a
-5       │   │   └── dummy-b
-6       │   │       └── dummy-a (already expanded on line 4)
-7       │   └── dummy-d
-8       └── dummy-g
-9           └── dummy-c (already expanded on line 3)
+0001: └─ dummy-f
+0002:    ├─ dummy-e
+0003:    │  ├─ dummy-c
+0004:    │  │  ├─ dummy-a
+0005:    │  │  └─ dummy-b
+0006:    │  │     └─ dummy-a (already expanded on line 4)
+0007:    │  └─ dummy-d
+0008:    └─ dummy-g
+0009:       └─ dummy-c (already expanded on line 3)
 ```
 
 Notice how `dummy-c` appears twice, on lines 3 and 9. The first time `dummy-c` appears (line 3), it's expanded fully. The second time it appears, the script is smart enough to know that it doesn't need to print that all out again, and can refer back to the first appearance of `dummy-c`. The same thing happens for `dummy-a`.

@@ -14,7 +14,7 @@ class BoxedInteger:
     def __init__(self, start: int): self.box = [start]
     def increment(self): self.box[0] += 1
     def read(self): return self.box[0]
-    def __str__(self): return str(self.read()).ljust(4)
+    def __str__(self): return str(self.read()).rjust(4, "0") + ": "
 
 
 class RPM:
@@ -108,7 +108,7 @@ def walk_impl(
         return
     line_num.increment()
     
-    prefix = padding + ('└── ' if is_last else '├── ')
+    prefix = padding + ('└─ ' if is_last else '├─ ')
     
     if current_rpm in visited:
         print(f"{str(line_num)}{prefix}{current_rpm} (already expanded on line {visited[current_rpm]})")
@@ -119,7 +119,7 @@ def walk_impl(
         dependencies = dag[current_rpm].dependencies
         for i, dependency in enumerate(dependencies):
             is_last_dep = (i == len(dependencies) - 1)
-            new_padding = padding + ('    ' if is_last else '│   ')
+            new_padding = padding + ('   ' if is_last else '│  ')
             walk_impl(dag, dependency[0], line_num, new_padding, visited, is_last_dep)
 
 

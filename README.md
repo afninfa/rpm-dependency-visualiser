@@ -33,13 +33,11 @@ $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
 0003:    │  ├─ dummy-c
 0004:    │  │  ├─ dummy-a
 0005:    │  │  └─ dummy-b
-0006:    │  │     └─ dummy-a (already expanded on line 4)
+0006:    │  │     └─ dummy-a (goto line 4 to see dependencies)
 0007:    │  └─ dummy-d
 0008:    └─ dummy-g
-0009:       └─ dummy-c (already expanded on line 3)
+0009:       └─ dummy-c (goto line 3 to see dependencies)
 ```
-
-Notice how `dummy-c` appears twice, on lines 3 and 9. The first time `dummy-c` appears (line 3), it's expanded fully. The second time it appears, the script is smart enough to know that it doesn't need to print that all out again, and can refer back to the first appearance of `dummy-c`. The same thing happens for `dummy-a`.
 
 ## Contribution wanted
 

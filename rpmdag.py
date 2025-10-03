@@ -112,7 +112,7 @@ def walk_impl(
     prefix = padding + ('└─ ' if is_last else '├─ ')
     
     if current_rpm in visited:
-        print(f"{str(line_num)}{prefix}{current_rpm} (already expanded on line {visited[current_rpm]})")
+        print(f"{str(line_num)}{prefix}{current_rpm} (goto line {visited[current_rpm]} to see dependencies)")
     else:
         visited[current_rpm] = line_num.read()
         print(f"{str(line_num)}{prefix}{current_rpm}")

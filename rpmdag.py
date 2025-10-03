@@ -9,6 +9,7 @@ import subprocess
 Dependency = tuple[str, Literal["=", ">="], str]
 
 
+# TODO: I don't think this needs to be a list of int, can just hold an int
 class BoxedInteger:
     box: list[int]
     def __init__(self, start: int): self.box = [start]

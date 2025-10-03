@@ -27,12 +27,6 @@ class RPM:
         self.version = version
         self.dependencies = dependencies
     
-    def __str__(self):
-        ret = f"{self.name} {self.version}"
-        for d in self.dependencies:
-            ret += " " + str(d)
-        return ret
-
 
 def print_help() -> None:
     script_name = os.path.basename(sys.argv[0])
@@ -40,11 +34,15 @@ def print_help() -> None:
 
 
 def query_rpm(path: str, query: str) -> str:
-    return subprocess.run(
+    result = subprocess.run(
         ["rpm", "-qp", "--queryformat", query, path],
         capture_output=True,
         text=True
-    ).stdout
+    )
+    if result.returncode != 0:
+        print(f"command failed with exit code {result.returncode}: rpm -qp --queryformat {query} {path}")
+        sys.exit(1)
+    return result.stdout
 
 
 def tokenise_dependency(dependency: str) -> Dependency:
@@ -57,11 +55,15 @@ def tokenise_dependency(dependency: str) -> Dependency:
 
 
 def get_rpm_dependencies(path: str) -> list[Dependency]:
-    all_dependencies: str = subprocess.run(
+    result = subprocess.run(
         ["rpm", "-qpR", path],
         capture_output=True,
         text=True
-    ).stdout
+    )
+    if result.returncode != 0:
+        print(f"command failed with exit code {result.returncode}: rpm -qpR {path}")
+        sys.exit(1)
+    all_dependencies: str = result.stdout
     dependency_list = all_dependencies.splitlines()
     return [tokenise_dependency(d) for d in dependency_list]
 
@@ -71,8 +73,8 @@ def build_dict(directory: str) -> dict[str, RPM]:
     for fname in os.listdir(directory):
         path = os.path.join(directory, fname)
         if (os.path.isfile(path) and fname.lower().endswith(".rpm")):
-            rpmname = query_rpm(path, "%{NAME}")
-            rpmversion = query_rpm(path, "%{VERSION}")
+            rpmname = query_rpm(path, "%{NAME}").strip()
+            rpmversion = query_rpm(path, "%{VERSION}").strip()
             dependencies = get_rpm_dependencies(path)
             if rpmname in ret:
                 print(f"Found duplicate of {fname}, aborting")
@@ -113,8 +115,13 @@ def main() -> None:
     dir_path = sys.argv[1]
     root_rpm_path = sys.argv[2]
 
-    if not os.path.isdir(dir_path) or not os.path.isfile(root_rpm_path):
+    if not os.path.isdir(dir_path):
         print(f"Error: '{dir_path}' is not a valid directory.\n")
+        print_help()
+        sys.exit(1)
+
+    if not os.path.isfile(root_rpm_path):
+        print(f"Error: '{root_rpm_path}' is not a valid file.\n")
         print_help()
         sys.exit(1)
 

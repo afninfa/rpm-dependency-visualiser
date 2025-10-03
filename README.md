@@ -1,6 +1,6 @@
 # rpm-dependency-visualiser
 
-Text-based visualisation of your RPM dependency relationships!
+Text-based visualisation of your RPM dependency relationships.
 
 Suppose you have a bunch of RPMs in a flat directory like this
 
@@ -17,7 +17,14 @@ total 60
 -rw-rw-r-- 1 afni afni 3826 Oct  3 21:30 rpmdag.py
 ```
 
-`rpmdag.py` shows you the DAG in text form
+There are probably a bunch of dependency relationships here. For example in my case
+- `dummy-f` has two dependencies, `dummy-e` and `dummy-g`
+- `dummy-e` has two dependencies, `dummy-c` and `dummy-d`
+- `dummy-g` has just one dependency which is `dummy-c`
+- `dummy-c` has two dependencies, `dummy-a` and `dummy-b`
+- Finally, `dummy-b` also depends on `dummy-a`
+
+`rpmdag.py` shows you the DAG structure in text form
 
 ```
 $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
@@ -31,12 +38,6 @@ $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
 8   |  dummy-g
 9   |  |  dummy-c (already expanded on line 3)
 ```
-
-This means
-- `dummy-f` has two dependencies, `dummy-e` and `dummy-g`
-- `dummy-e` has two dependencies, `dummy-c` and `dummy-d`
-- `dummy-g` has just one dependency which is `dummy-c`
-- etc.
 
 Notice how `dummy-c` is a dependency of both `dummy-e` and `dummy-g`. The first time `dummy-c` appears (line 3), it's expanded fully. But then the second time it appears, the script is smart enough to know that it doesn't need to print that all out again, and can refer back to the first appearance of `dummy-c`. The same thing happens for `dummy-a`.
 

@@ -1,7 +1,5 @@
 # rpm-dependency-visualiser
 
-Text-based visualisation of your RPM dependency relationships.
-
 Suppose you have a bunch of RPMs in a flat directory like this
 
 ```

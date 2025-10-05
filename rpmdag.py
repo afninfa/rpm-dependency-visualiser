@@ -3,19 +3,32 @@ import sys
 import os
 from typing import Literal
 import subprocess
+from enum import Enum
+
+Operator = Literal["=", ">=", "<=", ">", "<"]
 
 
-# TODO: Make this a class
-Dependency = tuple[str, Literal["=", ">="], str]
+class Dependency:
+    name: str
+    operator: Operator
+    version: str
+    def __init__(self, name, operator, version):
+        self.name = name
+        self.operator = operator
+        self.version = version
 
 
-# TODO: I don't think this needs to be a list of int, can just hold an int
 class BoxedInteger:
-    box: list[int]
-    def __init__(self, start: int): self.box = [start]
-    def increment(self): self.box[0] += 1
-    def read(self): return self.box[0]
+    box: int
+    def __init__(self, start: int): self.box = start
+    def increment(self): self.box += 1
+    def read(self): return self.box
     def __str__(self): return str(self.read()).rjust(4, "0") + ": "
+
+
+class RPMLibraryStatus(Enum):
+    NOT_AVAILABLE = 1
+    IMPORTED = 2
 
 
 class RPM:
@@ -48,11 +61,26 @@ def query_rpm(path: str, query: str) -> str:
 
 def tokenise_dependency(dependency: str) -> Dependency:
     cur = 0
+    # Get RPM name
     while cur < len(dependency) and dependency[cur] not in [" ", "=", ">", "<"]:
         cur += 1
     dependency_name = dependency[0 : cur]
-    # TODO: operator and version number parsing
-    return (dependency_name, "=", "0.0.0")
+    # If name only, return early
+    if cur >= len(dependency):
+        return Dependency(dependency_name, ">=", "0.0")
+    # Parse operator
+    if dependency[cur] == ' ':
+        cur += 1
+    operator_start = cur
+    while dependency[cur] in ["=", "<", ">"]:
+        cur += 1
+    operator = dependency[operator_start : cur]
+    # Version is the remainder of the string
+    if dependency[cur] == ' ':
+        cur += 1
+    version = dependency[cur :]
+    print(dependency_name, operator, version)
+    return Dependency(dependency_name, operator, version)
 
 
 def get_rpm_dependencies(path: str) -> list[Dependency]:
@@ -84,12 +112,16 @@ def build_dict(directory: str) -> dict[str, RPM]:
     return ret
 
 
-def clean_dict(dag: dict[str, RPM]) -> None:
+def clean_dict(
+        dag: dict[str, RPM],
+        rpmlibstatus: RPMLibraryStatus
+    ) -> None:
     for name, rpm in dag.items():
         cleaned_dependencies = []
         for dependency in rpm.dependencies:
-            if dependency[0] in dag:
-                cleaned_dependencies.append(dependency)
+            if dependency.name not in dag:
+                continue
+            cleaned_dependencies.append(dependency)
         rpm.dependencies = cleaned_dependencies
 
 
@@ -112,17 +144,36 @@ def walk_impl(
     prefix = padding + ('└─ ' if is_last else '├─ ')
     
     if current_rpm in visited:
-        print(f"{str(line_num)}{prefix}{current_rpm} (goto line {visited[current_rpm]} to see dependencies)")
+        print(f"{str(line_num)}{prefix}{current_rpm} (goto line {visited[current_rpm]})")
     else:
-        visited[current_rpm] = line_num.read()
-        print(f"{str(line_num)}{prefix}{current_rpm}")
-        
         dependencies = dag[current_rpm].dependencies
+        visited[current_rpm] = line_num.read()
+        
+        this_line = f"{str(line_num)}{prefix}{current_rpm}"
+        if len(dependencies) == 0: this_line += " (no dependencies)"
+        print(this_line)
+        
         for i, dependency in enumerate(dependencies):
             is_last_dep = (i == len(dependencies) - 1)
             new_padding = padding + ('   ' if is_last else '│  ')
-            walk_impl(dag, dependency[0], line_num, new_padding, visited, is_last_dep)
+            walk_impl(dag, dependency.name, line_num, new_padding, visited, is_last_dep)
 
+
+def check_tools() -> RPMLibraryStatus:
+    if subprocess.run(
+        ["rpm", "--version"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    ).returncode != 0:
+        print("Error: command line tool `rpm` is not installed")
+        sys.exit(1)
+    try:
+        import rpm
+    except ImportError:
+        print("Warning: python library `rpm` cannot be imported. Version constraint checks will be skipped!")
+        return RPMLibraryStatus.NOT_AVAILABLE
+    else:
+        return RPMLibraryStatus.IMPORTED
 
 def main() -> None:
     if len(sys.argv) != 3:
@@ -147,10 +198,12 @@ def main() -> None:
         print(f"Error: second argument must be a .rpm file, got {root_rpm_path}")
         sys.exit(1)
     
+    rpmlibstatus = check_tools()
+
     root_rpm_name = query_rpm(root_rpm_path, "%{NAME}")
 
     dependency_dag = build_dict(dir_path)
-    clean_dict(dependency_dag)
+    clean_dict(dependency_dag, rpmlibstatus)
     walk(dependency_dag, root_rpm_name)
 
 

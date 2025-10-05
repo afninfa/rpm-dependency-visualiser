@@ -16,6 +16,8 @@ class Dependency:
         self.name = name
         self.operator = operator
         self.version = version
+    def __repr__(self):
+        return f"{self.name}{self.operator}{self.version}"
 
 
 class BoxedInteger:
@@ -79,7 +81,6 @@ def tokenise_dependency(dependency: str) -> Dependency:
     if dependency[cur] == ' ':
         cur += 1
     version = dependency[cur :]
-    print(dependency_name, operator, version)
     return Dependency(dependency_name, operator, version)
 
 
@@ -121,6 +122,7 @@ def clean_dict(
         for dependency in rpm.dependencies:
             if dependency.name not in dag:
                 continue
+            
             cleaned_dependencies.append(dependency)
         rpm.dependencies = cleaned_dependencies
 

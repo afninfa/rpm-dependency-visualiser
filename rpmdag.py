@@ -12,20 +12,26 @@ class Dependency:
     name: str
     operator: Operator
     version: str
-    def __init__(self, name, operator, version):
+    path: str | None
+    def __init__(self, name, operator, version, path):
         self.name = name
         self.operator = operator
         self.version = version
+        self.path = path
     def __repr__(self):
         return f"{self.name}{self.operator}{self.version}"
 
 
 class BoxedInteger:
     box: int
-    def __init__(self, start: int): self.box = start
-    def increment(self): self.box += 1
-    def read(self): return self.box
-    def __str__(self): return str(self.read()).rjust(4, "0") + ": "
+    def __init__(self, start: int):
+        self.box = start
+    def increment(self):
+        self.box += 1
+    def read(self):
+        return self.box
+    def __str__(self):
+        return str(self.read()).rjust(4, "0") + ": "
 
 
 class RPMLibraryStatus(Enum):
@@ -37,11 +43,13 @@ class RPM:
     name: str
     version: str
     dependencies: list[Dependency]
+    path: str
 
-    def __init__(self, name: str, version: str, dependencies: list[Dependency]):
+    def __init__(self, name, version, dependencies, path):
         self.name = name
         self.version = version
         self.dependencies = dependencies
+        self.path = path
     
 
 def print_help() -> None:
@@ -69,7 +77,7 @@ def tokenise_dependency(dependency: str) -> Dependency:
     dependency_name = dependency[0 : cur]
     # If name only, return early
     if cur >= len(dependency):
-        return Dependency(dependency_name, ">=", "0.0")
+        return Dependency(dependency_name, ">=", "0.0", None)
     # Parse operator
     if dependency[cur] == ' ':
         cur += 1
@@ -81,7 +89,7 @@ def tokenise_dependency(dependency: str) -> Dependency:
     if dependency[cur] == ' ':
         cur += 1
     version = dependency[cur :]
-    return Dependency(dependency_name, operator, version)
+    return Dependency(dependency_name, operator, version, None)
 
 
 def get_rpm_dependencies(path: str) -> list[Dependency]:
@@ -109,7 +117,7 @@ def build_dict(directory: str) -> dict[str, RPM]:
             if rpmname in ret:
                 print(f"Found duplicate of {fname}, aborting")
                 sys.exit(1)
-            ret[rpmname] = RPM(rpmname, rpmversion, dependencies)
+            ret[rpmname] = RPM(rpmname, rpmversion, dependencies, path)
     return ret
 
 
@@ -124,6 +132,7 @@ def clean_dict(
                 continue
             
             cleaned_dependencies.append(dependency)
+            dependency.path = dag[dependency.name].path
         rpm.dependencies = cleaned_dependencies
 
 
@@ -170,7 +179,7 @@ def check_tools() -> RPMLibraryStatus:
         print("Error: command line tool `rpm` is not installed")
         sys.exit(1)
     try:
-        import rpm
+        import rpm # type: ignore
     except ImportError:
         print("Warning: python library `rpm` cannot be imported. Version constraint checks will be skipped!")
         return RPMLibraryStatus.NOT_AVAILABLE

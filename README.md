@@ -29,12 +29,12 @@ $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
 0001: └─ dummy-f
 0002:    ├─ dummy-e
 0003:    │  ├─ dummy-c
-0004:    │  │  ├─ dummy-a
+0004:    │  │  ├─ dummy-a (no dependencies)
 0005:    │  │  └─ dummy-b
-0006:    │  │     └─ dummy-a (goto line 4 to see dependencies)
-0007:    │  └─ dummy-d
+0006:    │  │     └─ dummy-a (goto line 4)
+0007:    │  └─ dummy-d (no dependencies)
 0008:    └─ dummy-g
-0009:       └─ dummy-c (goto line 3 to see dependencies)
+0009:       └─ dummy-c (goto line 3)
 ```
 
 ## Contribution wanted

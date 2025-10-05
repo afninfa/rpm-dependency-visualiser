@@ -37,6 +37,26 @@ $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
 0009:       └─ dummy-c (see line 3)
 ```
 
-## Contribution wanted
+## Version number checking (WIP)
 
-For now the script ignores version numbers and version constraints. So if a dependency is there but it's not the right version, this script does not catch that issue. There is a TODO in the code where the data is available but is dropped. Please feel free to add it in and put up an MR!
+The script will check every RPM in the tree and make sure the dependency versions match the
+constraints. In my dummy setting, I created another rpm `dummy-h` which requires `dummy-c` and
+`dummy-f` but versions which don't match the ones in my directory. The program doesn't crash,
+it still builds the tree, it just warns you at the bottom like this
+
+```
+$ python3 rpmdag.py x86_64 x86_64/dummy-h-1.3-1.x86_64.rpm
+0001: └─ dummy-h
+0002:    ├─ dummy-c
+0003:    │  ├─ dummy-a (no dependencies)
+0004:    │  └─ dummy-b
+0005:    │     └─ dummy-a (see line 3)
+0006:    └─ dummy-f
+0007:       ├─ dummy-e
+0008:       │  ├─ dummy-c (see line 2)
+0009:       │  └─ dummy-d (no dependencies)
+0010:       └─ dummy-g
+0011:          └─ dummy-c (see line 2)
+Warning: dummy-h requires dummy-c version = 0.9 but the local copy is version 1.0-1.
+Warning: dummy-h requires dummy-f version >= 1.5 but the local copy is version 1.3-1.
+```

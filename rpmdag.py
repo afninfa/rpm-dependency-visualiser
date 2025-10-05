@@ -5,32 +5,36 @@ from typing import Literal
 import subprocess
 from enum import Enum
 
-Operator = Literal["=", ">=", "<=", ">", "<"]
 
-
-class Dependency:
-    name: str
-    operator: Operator
-    version: str
-    path: str | None
-    def __init__(self, name, operator, version, path):
-        self.name = name
+class Constraint:
+    rpm_name: str
+    operator: str
+    desired_evr: str
+    rpm_path: str | None
+    def __init__(
+        self,
+        rpm_name: str,
+        operator: str,
+        desired_evr: str,
+        rpm_path: str | None
+    ) -> None:
+        self.rpm_name = rpm_name
         self.operator = operator
-        self.version = version
-        self.path = path
-    def __repr__(self):
-        return f"{self.name}{self.operator}{self.version}"
+        self.desired_evr = desired_evr
+        self.rpm_path = rpm_path
+    def __repr__(self) -> str:
+        return f"{self.rpm_name} {self.operator} {self.desired_evr}"
 
 
 class BoxedInteger:
     box: int
     def __init__(self, start: int):
         self.box = start
-    def increment(self):
+    def increment(self) -> None:
         self.box += 1
-    def read(self):
+    def read(self) -> int:
         return self.box
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.read()).rjust(4, "0") + ": "
 
 
@@ -39,15 +43,23 @@ class RPM:
     version: str
     epoch: str
     release: str
-    dependencies: list[Dependency]
+    constraints: list[Constraint]
     path: str
 
-    def __init__(self, name, version, epoch, release, dependencies, path):
+    def __init__(
+        self,
+        name: str,
+        version: str,
+        epoch: str,
+        release: str,
+        constraints: list[Constraint],
+        path: str
+    ):
         self.name = name
         self.version = version
         self.epoch = epoch
         self.release = release
-        self.dependencies = dependencies
+        self.constraints = constraints
         self.path = path
     
 
@@ -68,7 +80,7 @@ def query_rpm(path: str, query: str) -> str:
     return result.stdout
 
 
-def tokenise_dependency(dependency: str) -> Dependency:
+def tokenise_dependency(dependency: str) -> Constraint:
     cur = 0
     # Get RPM name
     while cur < len(dependency) and dependency[cur] not in [" ", "=", ">", "<"]:
@@ -76,7 +88,7 @@ def tokenise_dependency(dependency: str) -> Dependency:
     dependency_name = dependency[0 : cur]
     # If name only, return early
     if cur >= len(dependency):
-        return Dependency(dependency_name, ">=", "0.0", None)
+        return Constraint(dependency_name, ">=", "0.0", None)
     # Parse operator
     if dependency[cur] == ' ':
         cur += 1
@@ -88,10 +100,10 @@ def tokenise_dependency(dependency: str) -> Dependency:
     if dependency[cur] == ' ':
         cur += 1
     version = dependency[cur :]
-    return Dependency(dependency_name, operator, version, None)
+    return Constraint(dependency_name, operator, version, None)
 
 
-def get_rpm_dependencies(path: str) -> list[Dependency]:
+def get_rpm_dependencies(path: str) -> list[Constraint]:
     result = subprocess.run(
         ["rpm", "-qpR", path],
         capture_output=True,
@@ -126,23 +138,27 @@ def clean_dict(
         dag: dict[str, RPM],
     ) -> None:
     for name, rpm in dag.items():
-        cleaned_dependencies = []
-        for dependency in rpm.dependencies:
-            if dependency.name not in dag:
+        cleaned_constraints = []
+        for constraint in rpm.constraints:
+            if constraint.rpm_name not in dag:
                 continue
-            dependency.path = dag[dependency.name].path
-            cleaned_dependencies.append(dependency)
-        rpm.dependencies = cleaned_dependencies
+            constraint.rpm_path = dag[constraint.rpm_name].path
+            cleaned_constraints.append(constraint)
+        rpm.constraints = cleaned_constraints
 
 
 def warn_version_mismatches(
         dag: dict[str, RPM]
     ) -> None:
     for name, rpm in dag.items():
-        for dependency in rpm.dependencies:
-            our_copy_of_dependency = dag[dependency.name]
-            # TODO: Check if the version requirement matches the RPM we have
-            # If not, simply print a warning
+        for constraint in rpm.constraints:
+            local_copy_of_dependency: RPM = dag[constraint.rpm_name]
+            local_copy_of_dependency_evr = (
+                local_copy_of_dependency.epoch,
+                local_copy_of_dependency.version,
+                local_copy_of_dependency.release
+            )
+            # TODO: Somehow get EVR info from the constraint
     return None
 
 
@@ -167,17 +183,17 @@ def walk_impl(
     if current_rpm in visited:
         print(f"{str(line_num)}{prefix}{current_rpm} (goto line {visited[current_rpm]})")
     else:
-        dependencies = dag[current_rpm].dependencies
+        constraints = dag[current_rpm].constraints
         visited[current_rpm] = line_num.read()
         
         this_line = f"{str(line_num)}{prefix}{current_rpm}"
-        if len(dependencies) == 0: this_line += " (no dependencies)"
+        if len(constraints) == 0: this_line += " (no dependencies)"
         print(this_line)
         
-        for i, dependency in enumerate(dependencies):
-            is_last_dep = (i == len(dependencies) - 1)
+        for i, constraint in enumerate(constraints):
+            is_last_dep = (i == len(constraints) - 1)
             new_padding = padding + ('   ' if is_last else '│  ')
-            walk_impl(dag, dependency.name, line_num, new_padding, visited, is_last_dep)
+            walk_impl(dag, constraint.rpm_name, line_num, new_padding, visited, is_last_dep)
 
 
 def check_tools() -> None:

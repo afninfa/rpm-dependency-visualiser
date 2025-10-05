@@ -156,6 +156,11 @@ def compare_rpm_evr(
         desired_evr: str,
         operator: str
     ) -> bool:
+
+    # If the desired EVR does not specify a release, remove it from the local EVR
+    if '-' not in desired_evr:
+        local_evr = local_evr.rsplit('-', 1)[0]
+
     lua_code = f'print(rpm.vercmp("{local_evr}", "{desired_evr}"))'
     result = subprocess.run(
         ['rpm', '--eval', f'%{{lua:{lua_code}}}'],
@@ -180,18 +185,17 @@ def compare_rpm_evr(
 
 
 def warn_version_mismatches(
-        dag: dict[str, RPM]
+        dag: dict[str, RPM],
+        rpm_to_check: RPM,
     ) -> None:
-    for name, rpm in dag.items():
-        for constraint in rpm.constraints:
-            local_copy_of_dependency: RPM = dag[constraint.rpm_name]
-            if not compare_rpm_evr(
-                local_copy_of_dependency.evr_string,
-                constraint.desired_evr,
-                constraint.operator
-            ):
-                print(f"Warning: {name} requires {constraint.rpm_name} version {constraint.operator} {constraint.desired_evr} but the local copy is version {local_copy_of_dependency.evr_string}.")
-    return None
+    for constraint in rpm_to_check.constraints:
+        local_copy_of_dependency: RPM = dag[constraint.rpm_name]
+        if not compare_rpm_evr(
+            local_copy_of_dependency.evr_string,
+            constraint.desired_evr,
+            constraint.operator
+        ):
+            print(f"Warning: {rpm_to_check.name} requires {constraint.rpm_name} version {constraint.operator} {constraint.desired_evr} but the local copy is version {local_copy_of_dependency.evr_string}.")
 
 
 def walk(dag: dict[str, RPM], root_rpm: str) -> None:
@@ -215,6 +219,7 @@ def walk_impl(
     if current_rpm in visited:
         print(f"{str(line_num)}{prefix}{current_rpm} (see line {visited[current_rpm]})")
     else:
+        warn_version_mismatches(dag, dag[current_rpm])
         constraints = dag[current_rpm].constraints
         visited[current_rpm] = line_num.read()
         
@@ -266,7 +271,6 @@ def main() -> None:
 
     dependency_dag = build_dict(dir_path)
     clean_dict(dependency_dag)
-    warn_version_mismatches(dependency_dag)
     walk(dependency_dag, root_rpm_name)
 
 

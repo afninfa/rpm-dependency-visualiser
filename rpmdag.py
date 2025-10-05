@@ -34,20 +34,19 @@ class BoxedInteger:
         return str(self.read()).rjust(4, "0") + ": "
 
 
-class RPMLibraryStatus(Enum):
-    NOT_AVAILABLE = 1
-    IMPORTED = 2
-
-
 class RPM:
     name: str
     version: str
+    epoch: str
+    release: str
     dependencies: list[Dependency]
     path: str
 
-    def __init__(self, name, version, dependencies, path):
+    def __init__(self, name, version, epoch, release, dependencies, path):
         self.name = name
         self.version = version
+        self.epoch = epoch
+        self.release = release
         self.dependencies = dependencies
         self.path = path
     
@@ -113,17 +112,18 @@ def build_dict(directory: str) -> dict[str, RPM]:
         if (os.path.isfile(path) and fname.lower().endswith(".rpm")):
             rpmname = query_rpm(path, "%{NAME}").strip()
             rpmversion = query_rpm(path, "%{VERSION}").strip()
+            rpmepoch = query_rpm(path, "${EPOCH}").strip()
+            rpmrelease = query_rpm(path, "${RELEASE}").strip()
             dependencies = get_rpm_dependencies(path)
             if rpmname in ret:
                 print(f"Found duplicate of {fname}, aborting")
                 sys.exit(1)
-            ret[rpmname] = RPM(rpmname, rpmversion, dependencies, path)
+            ret[rpmname] = RPM(rpmname, rpmversion, rpmepoch, rpmrelease, dependencies, path)
     return ret
 
 
 def clean_dict(
         dag: dict[str, RPM],
-        rpmlibstatus: RPMLibraryStatus
     ) -> None:
     for name, rpm in dag.items():
         cleaned_dependencies = []
@@ -133,6 +133,17 @@ def clean_dict(
             dependency.path = dag[dependency.name].path
             cleaned_dependencies.append(dependency)
         rpm.dependencies = cleaned_dependencies
+
+
+def warn_version_mismatches(
+        dag: dict[str, RPM]
+    ) -> None:
+    for name, rpm in dag.items():
+        for dependency in rpm.dependencies:
+            our_copy_of_dependency = dag[dependency.name]
+            # TODO: Check if the version requirement matches the RPM we have
+            # If not, simply print a warning
+    return None
 
 
 def walk(dag: dict[str, RPM], root_rpm: str) -> None:
@@ -169,7 +180,7 @@ def walk_impl(
             walk_impl(dag, dependency.name, line_num, new_padding, visited, is_last_dep)
 
 
-def check_tools() -> RPMLibraryStatus:
+def check_tools() -> None:
     if subprocess.run(
         ["rpm", "--version"],
         stdout=subprocess.DEVNULL,
@@ -177,13 +188,6 @@ def check_tools() -> RPMLibraryStatus:
     ).returncode != 0:
         print("Error: command line tool `rpm` is not installed")
         sys.exit(1)
-    try:
-        import rpm # type: ignore
-    except ImportError:
-        print("Warning: python library `rpm` cannot be imported. Version constraint checks will be skipped!")
-        return RPMLibraryStatus.NOT_AVAILABLE
-    else:
-        return RPMLibraryStatus.IMPORTED
 
 def main() -> None:
     if len(sys.argv) != 3:
@@ -208,12 +212,13 @@ def main() -> None:
         print(f"Error: second argument must be a .rpm file, got {root_rpm_path}")
         sys.exit(1)
     
-    rpmlibstatus = check_tools()
+    check_tools()
 
     root_rpm_name = query_rpm(root_rpm_path, "%{NAME}")
 
     dependency_dag = build_dict(dir_path)
-    clean_dict(dependency_dag, rpmlibstatus)
+    clean_dict(dependency_dag)
+    warn_version_mismatches(dependency_dag)
     walk(dependency_dag, root_rpm_name)
 
 

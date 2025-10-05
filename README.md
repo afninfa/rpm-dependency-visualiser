@@ -31,10 +31,10 @@ $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
 0003:    │  ├─ dummy-c
 0004:    │  │  ├─ dummy-a (no dependencies)
 0005:    │  │  └─ dummy-b
-0006:    │  │     └─ dummy-a (goto line 4)
+0006:    │  │     └─ dummy-a (see line 4)
 0007:    │  └─ dummy-d (no dependencies)
 0008:    └─ dummy-g
-0009:       └─ dummy-c (goto line 3)
+0009:       └─ dummy-c (see line 3)
 ```
 
 ## Contribution wanted

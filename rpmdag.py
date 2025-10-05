@@ -127,9 +127,9 @@ def build_dict(directory: str) -> dict[str, RPM]:
         if (os.path.isfile(path) and fname.lower().endswith(".rpm")):
             rpmname = query_rpm(path, "%{NAME}").strip()
             rpmversion = query_rpm(path, "%{VERSION}").strip()
-            rpmepoch = query_rpm(path, "${EPOCH}").strip()
-            rpmrelease = query_rpm(path, "${RELEASE}").strip()
-            rpmevr = query_rpm(path, "${EVR}").strip()
+            rpmepoch = query_rpm(path, "%{EPOCH}").strip()
+            rpmrelease = query_rpm(path, "%{RELEASE}").strip()
+            rpmevr = query_rpm(path, "%{EVR}").strip()
             constraints = get_rpm_constraints(path)
             if rpmname in ret:
                 print(f"Found duplicate of {fname}, aborting")
@@ -151,14 +151,46 @@ def clean_dict(
         rpm.constraints = cleaned_constraints
 
 
+def compare_rpm_evr(
+        local_evr: str,
+        desired_evr: str,
+        operator: str
+    ) -> bool:
+    lua_code = f'print(rpm.vercmp("{local_evr}", "{desired_evr}"))'
+    result = subprocess.run(
+        ['rpm', '--eval', f'%{{lua:{lua_code}}}'],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    cmp_result = int(result.stdout.strip())
+    if operator == '<':
+        return cmp_result < 0
+    elif operator == '<=':
+        return cmp_result <= 0
+    elif operator == '=':
+        return cmp_result == 0
+    elif operator == '>=':
+        return cmp_result >= 0
+    elif operator == '>':
+        return cmp_result > 0
+    else:
+        print(f"Invalid operator: {operator}")
+        sys.exit(1)
+
+
 def warn_version_mismatches(
         dag: dict[str, RPM]
     ) -> None:
     for name, rpm in dag.items():
         for constraint in rpm.constraints:
             local_copy_of_dependency: RPM = dag[constraint.rpm_name]
-            local_copy_of_dependency_evr: str = local_copy_of_dependency.evr_string
-            # TODO: Somehow get EVR info from the constraint
+            if not compare_rpm_evr(
+                local_copy_of_dependency.evr_string,
+                constraint.desired_evr,
+                constraint.operator
+            ):
+                print(f"Warning: {name} requires {constraint.rpm_name} version {constraint.operator} {constraint.desired_evr} but the local copy is version {local_copy_of_dependency.evr_string}.")
     return None
 
 

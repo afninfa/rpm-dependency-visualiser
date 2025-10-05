@@ -198,8 +198,10 @@ def warn_version_mismatches(
             print(f"Warning: {rpm_to_check.name} requires {constraint.rpm_name} version {constraint.operator} {constraint.desired_evr} but the local copy is version {local_copy_of_dependency.evr_string}.")
 
 
-def walk(dag: dict[str, RPM], root_rpm: str) -> None:
-    return walk_impl(dag, root_rpm, BoxedInteger(0), "", {})
+def walk(dag: dict[str, RPM], root_rpm: str) -> list[str]:
+    line_number_map = {}
+    walk_impl(dag, root_rpm, BoxedInteger(0), "", line_number_map)
+    return list(line_number_map.keys()) # RPMs which were visited
 
 
 def walk_impl(
@@ -219,7 +221,6 @@ def walk_impl(
     if current_rpm in visited:
         print(f"{str(line_num)}{prefix}{current_rpm} (see line {visited[current_rpm]})")
     else:
-        warn_version_mismatches(dag, dag[current_rpm])
         constraints = dag[current_rpm].constraints
         visited[current_rpm] = line_num.read()
         
@@ -271,7 +272,9 @@ def main() -> None:
 
     dependency_dag = build_dict(dir_path)
     clean_dict(dependency_dag)
-    walk(dependency_dag, root_rpm_name)
+    visited_rpms = walk(dependency_dag, root_rpm_name)
+    for rpm in visited_rpms:
+        warn_version_mismatches(dependency_dag, dependency_dag[rpm])
 
 
 if __name__ == "__main__":

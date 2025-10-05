@@ -130,9 +130,8 @@ def clean_dict(
         for dependency in rpm.dependencies:
             if dependency.name not in dag:
                 continue
-            
-            cleaned_dependencies.append(dependency)
             dependency.path = dag[dependency.name].path
+            cleaned_dependencies.append(dependency)
         rpm.dependencies = cleaned_dependencies
 
 

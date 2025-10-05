@@ -52,6 +52,44 @@ class RPM:
         self.path = path
     
 
+def compare_rpm_versions(installed_path: str, required_path: str, operator: Operator) -> bool:
+    try:
+        import rpm # type: ignore
+    except ImportError:
+        return True
+    with open(installed_path, 'rb') as f:
+        hdr_installed = rpm.hdr(f)
+    
+    with open(required_path, 'rb') as f:
+        hdr_required = rpm.hdr(f)
+    
+    installed_evr = (
+        hdr_installed['epoch'] or 0,
+        hdr_installed['version'],
+        hdr_installed['release']
+    )
+    
+    required_evr = (
+        hdr_required['epoch'] or 0,
+        hdr_required['version'],
+        hdr_required['release']
+    )
+    
+    cmp_result = rpm.labelCompare(installed_evr, required_evr)
+    
+    if operator == "=":
+        return cmp_result == 0
+    elif operator == ">=":
+        return cmp_result >= 0
+    elif operator == "<=":
+        return cmp_result <= 0
+    elif operator == ">":
+        return cmp_result > 0
+    elif operator == "<":
+        return cmp_result < 0
+    return False
+
+
 def print_help() -> None:
     script_name = os.path.basename(sys.argv[0])
     print(f"Usage: {script_name} <directory_path> <root_rpm>")
@@ -123,14 +161,21 @@ def build_dict(directory: str) -> dict[str, RPM]:
 
 def clean_dict(
         dag: dict[str, RPM],
-        rpmlibstatus: RPMLibraryStatus
     ) -> None:
     for name, rpm in dag.items():
         cleaned_dependencies = []
         for dependency in rpm.dependencies:
-            if dependency.name not in dag:
-                continue
-            
+            if dependency.name not in dag: continue
+            if dependency.path is None:
+                print(f"Error: dependency {dependency} should've had a path, but it was None")
+                sys.exit(1)
+            if not compare_rpm_versions(
+                dag[dependency.name].path,
+                dependency.path or '',
+                dependency.operator
+            ):
+                installed_version = dag[dependency.name].version
+                print(f"Warning: {name} requires {dependency.name} {dependency.operator} {dependency.version}, but found version {installed_version}")
             cleaned_dependencies.append(dependency)
             dependency.path = dag[dependency.name].path
         rpm.dependencies = cleaned_dependencies
@@ -170,7 +215,7 @@ def walk_impl(
             walk_impl(dag, dependency.name, line_num, new_padding, visited, is_last_dep)
 
 
-def check_tools() -> RPMLibraryStatus:
+def check_tools() -> None:
     if subprocess.run(
         ["rpm", "--version"],
         stdout=subprocess.DEVNULL,
@@ -178,13 +223,6 @@ def check_tools() -> RPMLibraryStatus:
     ).returncode != 0:
         print("Error: command line tool `rpm` is not installed")
         sys.exit(1)
-    try:
-        import rpm # type: ignore
-    except ImportError:
-        print("Warning: python library `rpm` cannot be imported. Version constraint checks will be skipped!")
-        return RPMLibraryStatus.NOT_AVAILABLE
-    else:
-        return RPMLibraryStatus.IMPORTED
 
 def main() -> None:
     if len(sys.argv) != 3:
@@ -209,12 +247,12 @@ def main() -> None:
         print(f"Error: second argument must be a .rpm file, got {root_rpm_path}")
         sys.exit(1)
     
-    rpmlibstatus = check_tools()
+    check_tools()
 
     root_rpm_name = query_rpm(root_rpm_path, "%{NAME}")
 
     dependency_dag = build_dict(dir_path)
-    clean_dict(dependency_dag, rpmlibstatus)
+    clean_dict(dependency_dag)
     walk(dependency_dag, root_rpm_name)
 
 

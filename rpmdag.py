@@ -43,6 +43,7 @@ class RPM:
     version: str
     epoch: str
     release: str
+    evr_string: str
     constraints: list[Constraint]
     path: str
 
@@ -52,6 +53,7 @@ class RPM:
         version: str,
         epoch: str,
         release: str,
+        evr_string: str,
         constraints: list[Constraint],
         path: str
     ):
@@ -59,6 +61,7 @@ class RPM:
         self.version = version
         self.epoch = epoch
         self.release = release
+        self.evr_string = evr_string
         self.constraints = constraints
         self.path = path
     
@@ -103,7 +106,7 @@ def tokenise_dependency(dependency: str) -> Constraint:
     return Constraint(dependency_name, operator, version, None)
 
 
-def get_rpm_dependencies(path: str) -> list[Constraint]:
+def get_rpm_constraints(path: str) -> list[Constraint]:
     result = subprocess.run(
         ["rpm", "-qpR", path],
         capture_output=True,
@@ -126,11 +129,12 @@ def build_dict(directory: str) -> dict[str, RPM]:
             rpmversion = query_rpm(path, "%{VERSION}").strip()
             rpmepoch = query_rpm(path, "${EPOCH}").strip()
             rpmrelease = query_rpm(path, "${RELEASE}").strip()
-            dependencies = get_rpm_dependencies(path)
+            rpmevr = query_rpm(path, "${EVR}").strip()
+            constraints = get_rpm_constraints(path)
             if rpmname in ret:
                 print(f"Found duplicate of {fname}, aborting")
                 sys.exit(1)
-            ret[rpmname] = RPM(rpmname, rpmversion, rpmepoch, rpmrelease, dependencies, path)
+            ret[rpmname] = RPM(rpmname, rpmversion, rpmepoch, rpmrelease, rpmevr, constraints, path)
     return ret
 
 
@@ -153,11 +157,7 @@ def warn_version_mismatches(
     for name, rpm in dag.items():
         for constraint in rpm.constraints:
             local_copy_of_dependency: RPM = dag[constraint.rpm_name]
-            local_copy_of_dependency_evr = (
-                local_copy_of_dependency.epoch,
-                local_copy_of_dependency.version,
-                local_copy_of_dependency.release
-            )
+            local_copy_of_dependency_evr: str = local_copy_of_dependency.evr_string
             # TODO: Somehow get EVR info from the constraint
     return None
 
@@ -181,7 +181,7 @@ def walk_impl(
     prefix = padding + ('└─ ' if is_last else '├─ ')
     
     if current_rpm in visited:
-        print(f"{str(line_num)}{prefix}{current_rpm} (goto line {visited[current_rpm]})")
+        print(f"{str(line_num)}{prefix}{current_rpm} (see line {visited[current_rpm]})")
     else:
         constraints = dag[current_rpm].constraints
         visited[current_rpm] = line_num.read()

@@ -68,7 +68,7 @@ class RPM:
 
 def print_help() -> None:
     script_name = os.path.basename(sys.argv[0])
-    print(f"Usage: {script_name} <directory_path> <root_rpm>")
+    print(f"Usage: {script_name} <directory_path> <OPTIONAL: root_rpm>")
 
 
 def query_rpm(path: str, query: str) -> str:
@@ -198,9 +198,20 @@ def warn_version_mismatches(
             print(f"Warning: {rpm_to_check.name} requires {constraint.rpm_name} version {constraint.operator} {constraint.desired_evr} but the local copy is version {local_copy_of_dependency.evr_string}.")
 
 
-def walk(dag: dict[str, RPM], root_rpm: str) -> list[str]:
-    line_number_map = {}
-    walk_impl(dag, root_rpm, BoxedInteger(0), "", line_number_map)
+def walk(dag: dict[str, RPM], root_rpm: str | None) -> list[str]:
+    line_number_map: dict[str, int] = {}
+    current_line_number: BoxedInteger = BoxedInteger(0)
+    if root_rpm:
+        walk_impl(dag, root_rpm, current_line_number, "", line_number_map)
+    else:
+        # Do all RPMs
+        for rpm_name in dag:
+            # Do an RPM
+            walk_impl(dag, rpm_name, current_line_number, "", line_number_map)
+            # Add some whitespace between each one
+            current_line_number.increment()
+            print(str(current_line_number))
+    # Return the RPMs which were included in the output
     return list(line_number_map.keys()) # RPMs which were visited
 
 
@@ -244,31 +255,31 @@ def check_tools() -> None:
         sys.exit(1)
 
 def main() -> None:
-    if len(sys.argv) != 3:
-        print(f"Expected 2 arguments, provided {len(sys.argv) - 1}.")
+    if len(sys.argv) not in [2,3]:
+        print(f"Expected 1 or 2 arguments, provided {len(sys.argv) - 1}.")
         print_help()
         sys.exit(1)
 
     dir_path = sys.argv[1]
-    root_rpm_path = sys.argv[2]
+    root_rpm_path = None if len(sys.argv) < 3 else sys.argv[2]
 
     if not os.path.isdir(dir_path):
         print(f"Error: '{dir_path}' is not a valid directory.\n")
         print_help()
         sys.exit(1)
 
-    if not os.path.isfile(root_rpm_path):
+    if root_rpm_path and not os.path.isfile(root_rpm_path):
         print(f"Error: '{root_rpm_path}' is not a valid file.\n")
         print_help()
         sys.exit(1)
 
-    if not root_rpm_path.endswith(".rpm"):
+    if root_rpm_path and not root_rpm_path.endswith(".rpm"):
         print(f"Error: second argument must be a .rpm file, got {root_rpm_path}")
         sys.exit(1)
     
     check_tools()
 
-    root_rpm_name = query_rpm(root_rpm_path, "%{NAME}")
+    root_rpm_name: str | None = None if not root_rpm_path else query_rpm(root_rpm_path, "%{NAME}")
 
     dependency_dag = build_dict(dir_path)
     clean_dict(dependency_dag)

@@ -1,5 +1,9 @@
 # rpm-dependency-visualiser
 
+NOTE: the code has python 3.10+ type hints. If you want to run on an older version of python, there is a GitHub action to automatically strip the type hints and provide a `_release.py` version of the script. You can find this in the releases section.
+
+## What is this?
+
 Suppose you have a bunch of RPMs in a flat directory like this
 
 ```

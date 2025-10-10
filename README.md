@@ -37,6 +37,35 @@ $ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
 0009:       └─ dummy-c (see line 3)
 ```
 
+You don't have to specify a root RPM. If you don't, it will expand everything in the provided
+directory in a random order.
+
+```
+rpm-dependency-visualiser $ python3 rpmdag.py x86_64
+0001: └─ dummy-g
+0002:    └─ dummy-c
+0003:       ├─ dummy-a (no dependencies)
+0004:       └─ dummy-b
+0005:          └─ dummy-a (see line 3)
+0006:
+0007: └─ dummy-c (see line 2)
+0008:
+0009: └─ dummy-f
+0010:    ├─ dummy-e
+0011:    │  ├─ dummy-c (see line 2)
+0012:    │  └─ dummy-d (no dependencies)
+0013:    └─ dummy-g (see line 1)
+0014:
+0015: └─ dummy-b (see line 4)
+0016:
+0017: └─ dummy-a (see line 3)
+0018:
+0019: └─ dummy-e (see line 10)
+0020:
+0021: └─ dummy-d (see line 12)
+0022:
+```
+
 ## Version number checking (WIP)
 
 I created another rpm `dummy-h` which requires `dummy-c` and `dummy-f` but versions which don't

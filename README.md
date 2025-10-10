@@ -22,6 +22,14 @@ There are probably a bunch of dependency relationships here. For example in my c
 - `dummy-c` has two dependencies, `dummy-a` and `dummy-b`
 - Finally, `dummy-b` also depends on `dummy-a`
 
+First, the usage
+
+```
+$ python3 rpmdag.py
+Expected 1 or 2 arguments, provided 0.
+Usage: rpmdag.py <directory_path> <OPTIONAL: root_rpm>
+```
+
 `rpmdag.py` shows you the DAG structure in text form
 
 ```

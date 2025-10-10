@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import os
-from typing import Literal
 import subprocess
 from enum import Enum
 

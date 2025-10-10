@@ -25,7 +25,7 @@ There are probably a bunch of dependency relationships here. For example in my c
 `rpmdag.py` shows you the DAG structure in text form
 
 ```
-$ python3 rpmdag.py . dummy-f-1.3-1.x86_64.rpm
+$ python3 rpmdag.py x86_64 x86_64/dummy-f-1.3-1.x86_64.rpm
 0001: └─ dummy-f
 0002:    ├─ dummy-e
 0003:    │  ├─ dummy-c
@@ -41,7 +41,7 @@ You don't have to specify a root RPM. If you don't, it will expand everything in
 directory in a random order.
 
 ```
-rpm-dependency-visualiser $ python3 rpmdag.py x86_64
+$ python3 rpmdag.py x86_64
 0001: └─ dummy-g
 0002:    └─ dummy-c
 0003:       ├─ dummy-a (no dependencies)

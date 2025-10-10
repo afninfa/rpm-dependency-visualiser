@@ -1,0 +1,23 @@
+name: Type Check and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - run: pip install mypy strip-hints
+    - run: mypy --strict your_script.py
+    - run: strip-hints your_script.py -o your_script_stripped.py
+    - uses: softprops/action-gh-release@v1
+      with:
+        files: your_script_stripped.py
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

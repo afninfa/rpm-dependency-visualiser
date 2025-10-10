@@ -1,6 +1,6 @@
 # rpm-dependency-visualiser
 
-NOTE: the code has python 3.10+ syntax type hints. If you want to run on an older version of python, there is a GitHub action to automatically strip the type hints. You can find this in the releases section. This is a WIP, it's not heavily tested.
+NOTE: the code has python 3.10+ syntax type hints. If you want to run on an older version of python, there is a GitHub action to strip the type hints. Look for `rpmdag_stripped.py` in the [releases section](https://github.com/afninfa/rpm-dependency-visualiser/releases).
 
 ## What is this?
 
